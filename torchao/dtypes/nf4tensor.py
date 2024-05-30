@@ -322,6 +322,7 @@ def copy_(func, *args, **kwargs):
     original: NF4Tensor = args[0][0]
     copy_in: torch.Tensor = args[0][1]
 
+
     # Base Case
 
     if same_metadata(original, copy_in):
@@ -928,3 +929,18 @@ def function_cpu(*args, **kwargs):
     updated_attrs = call_from_inner_tensors(nf4tensor, "cpu", args[1:], kwargs)
     updated_attrs["device"] = "cpu"
     return NF4Tensor(*construct_nf4_args(nf4tensor, updated_attrs))
+
+@implements_torch_function(torch.Tensor.module_load)
+def function_module_load(original, other, assign=False):
+    if assign is False:
+        raise NotImplementedError("assign=False is not supported yet")
+
+    if type(other) is NF4Tensor:
+        if same_metadata(original, other):
+            return other.detach()
+        else:
+            return NF4Tensor.from_tensor(other.get_original_weight(), original.block_size, original.scaler_block_size)
+    elif type(other) is torch.Tensor:
+        return NF4Tensor.from_tensor(other, original.block_size, original.scaler_block_size)
+    else:
+        raise NotImplementedError(f"{type(other)} is not supported")
